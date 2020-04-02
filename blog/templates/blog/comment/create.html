@@ -1,0 +1,235 @@
+{% extends "_base.html" %}
+{% load blog %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block title %}
+Comment
+{% endblock title %}
+{% block css %}
+<link rel="stylesheet" href="{% static 'vendor/simplemde-1.11.2/simplemde.min.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/highlight-9.11.0/github.min.css' %}">
+<script src="{% static 'vendor/highlight-9.11.0/highlight.min.js' %}"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+<style>
+    .comments img {
+        max-height: 100%;
+        max-width: 100%;
+    }
+
+</style>
+{% endblock css %}
+{% block main %}
+<div class="pt-5">
+
+    <h1 class="display-4 text-center">Markdown Example</h1>
+    <p class="lead">Bình luận</p>
+
+    <form action="." method="post" novalidate>
+        {% csrf_token %}
+        {{ form|crispy }}
+        <button type="submit" class="btn btn-success btn-lg btn-block">Bình luận</button>
+    </form>
+
+    <h4 class="my-4 font-weight-bold">Danh sách bình luận</h4>
+    <table class="table my-4 comments">
+        <thead>
+            <tr>
+                <th scope="col">Tên</th>
+                <th scope="col">Nội dung</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for comment in comments %}
+            <tr>
+                <td>{{ comment.name }}</td>
+                <td>{{ comment.content|markdown }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock main %}
+{% block javascript %}
+<script src="{% static 'vendor/simplemde-1.11.2/simplemde.min.js' %}"></script>
+<script src="{% static 'vendor/sweetalert2/sweetalert.min.js' %}"></script>
+<script src="{% static 'vendor/jquery-file-upload/vendor/jquery.ui.widget.js' %}"></script>
+<script src="{% static 'vendor/jquery-file-upload/jquery.fileupload.js' %}"></script>
+<script type="text/template" id="ImageUploadTemplate">
+    <div id="uploadImage">
+        <div class="my-2" id="js-display-image">
+            <div style="border: 1px dashed; background-color: #f9f7f7; height: 279px; display: flex; justify-content: center; align-items: center;">
+                <i class="fas fa-image fa-4x"></i>
+            </div>
+        </div>
+        <input class="fileUpload" type="file" name="image"
+                   style="display: none;"
+                   data-url=""
+                   data-form-data='{"csrfmiddlewaretoken": "{{ csrf_token }}"}'>
+
+        <button class="btn btn-danger btn-lg my-4 js-delete-image"
+                data-url=""
+                style="display: none">
+            <i class="fas fa-trash-alt mr-2"></i>
+            Xóa ảnh
+        </button>
+        
+        <button class="btn btn-warning text-white btn-lg my-4 js-uploading-image" style="display: none" type="button" disabled>
+            <span class="spinner-warning spinner-border-sm" role="status" aria-hidden="true"></span>
+            Loading...
+        </button>
+
+        <button class="btn btn-warning btn-lg text-white my-4 js-upload-image"><i class="fas fa-cloud-upload-alt mr-2"></i>Tải ảnh lên</button>
+
+        <div class="invalid-feedback js-error">Ảnh không hợp lệ!</div>
+    </div>
+</script>
+<script>
+function youtube_parser(url) {
+    var regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/;
+    var match = url.match(regExp);
+    return (match && match[7].length == 11) ? match[7] : url;
+}
+var token = "{{ csrf_token }}"
+
+var Toolbar_UploadImage = {
+    name: "UploadImage",
+    title: "Upload Image",
+    className: "fa fa-upload",
+    action: function(editor) {
+        var cm = editor.codemirror;
+        swal({
+            title: "Upload Image",
+            content: $.parseHTML('<div>' + $('#ImageUploadTemplate').html() + '</div>')[0],
+            animation: "slide-from-top",
+            timer: 0,
+        });
+
+        $('.js-upload-image').on('click', function () {
+
+            $('.fileUpload').click();
+            $('.fileUpload').fileupload({
+                dataTye: 'json',
+                start: function(e, data) {
+                    $('.js-upload-image').hide();
+                    $('.js-uploading-image').show();
+                },
+                done: function (e, data) {
+                    $('.js-uploading-image').hide()
+                    $('.js-upload-image').show()
+                    if (data.result.is_valid) {
+                        $('.js-error').hide()
+                        $('.js-delete-image').show()
+                        $('.js-delete-image').attr('data-url', data.result.delete_url)
+                        $('.js-upload-image').prop('disabled', true);
+                        $('#js-display-image').html(data.result.html_image)
+
+                        cm.replaceSelection(data.result.markdown_image);
+
+                    } else {
+                        $('.js-error').show();
+                    }
+                }
+            });
+
+            $('.js-delete-image').on('click', function () {
+                let el = $(this);
+
+                $.ajax({
+                    url: el.attr('data-url'),
+                    type: 'post',
+                    dataType: 'json',
+                    data: {
+                        csrfmiddlewaretoken: token,
+                    },
+                    success: function (data) {
+                        $('.js-delete-image').hide();
+                        $('.js-upload-image').show();
+                        $('.js-upload-image').prop('disabled', false);
+                        $('#js-display-image').html('')
+                    }
+                });
+            });
+
+        });
+    }
+}
+
+var Toolbar_YouTube = {
+    name: "YouTube",
+    title: "Link YouTube",
+    className: "fa fa-youtube js-youtube",
+    action: function(editor) {
+        var cm = editor.codemirror;
+
+        swal({
+            title: "YouTube",
+            text: "Nhập link Youtube",
+            content: "input",
+            animation: "slide-from-top",
+            inputPlaceholder: "https://",
+            buttons: true,
+        }).then(function(inputValue) {
+            if (inputValue === false) return false;
+            if (inputValue === "") {
+                swal("Hãy nhập một đường link!");
+                return false;
+            }
+            var youtubeID = youtube_parser(inputValue);
+            cm.replaceSelection('[![Yes](https://img.youtube.com/vi/' + youtubeID + '/0.jpg)](https://www.youtube.com/watch?v=' + youtubeID + ')');
+            swal.close();
+        });
+    }
+}
+
+var Toolbar_br = {
+    name: "br",
+    title: "Xuống dòng",
+    className: "fa fa-level-down fa-rotate-90",
+    action: function(editor) {
+        var cm = editor.codemirror;
+        cm.replaceSelection("<br />");
+    }
+};
+
+$(function() {
+
+    $('[id="id_content"').each(function(i, el) {
+
+        var simplemde = new SimpleMDE({
+            element: el,
+            spellChecker: false,
+            status: true,
+            toolbar: [
+                "undo",
+                "redo",
+                "|",
+                "bold",
+                "italic",
+                "heading",
+                "|",
+                "table",
+                "unordered-list",
+                "ordered-list",
+                "|",
+                "link",
+                "image",
+                Toolbar_UploadImage,
+                Toolbar_YouTube,
+                "|",
+                "code",
+                "horizontal-rule",
+                Toolbar_br,
+                "|",
+                "preview",
+                "side-by-side",
+                "fullscreen",
+                "|",
+                "guide",
+            ],
+        });
+    });
+
+});
+</script>
+{% endblock javascript %}
