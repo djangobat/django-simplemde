@@ -24,6 +24,12 @@ Comment
     img[src*='#w-100'] {
         width: 100%;
     }
+    img {
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center; 
+    }
 </style>
 {% endblock css %}
 {% block main %}
@@ -37,7 +43,7 @@ Comment
         {{ form|crispy }}
         <button type="submit" class="btn btn-success btn-lg btn-block">Bình luận</button>
     </form>
-
+    
     <h4 class="my-4 font-weight-bold">Danh sách bình luận</h4>
     <table class="table my-4 comments">
         <thead>
@@ -55,6 +61,14 @@ Comment
             {% endfor %}
         </tbody>
     </table>
+</div>
+
+<div class="modal fade" id="modalImage" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+    <div class="modal-content">
+      <img class="w-100" src="http://127.0.0.1:8000/media/comments/timeline-project-educa_yhUkgQJ.png#w-100" alt="">
+  </div>
+</div>
 </div>
 
 {% endblock main %}
@@ -94,6 +108,7 @@ var replaceTextImage = function (cm, image, text) {
 
     doc.replaceRange(text, from, to);
 }
+
 var Toolbar_UploadImage = {
     name: "UploadImage",
     title: "Upload Image",
@@ -248,6 +263,12 @@ $(function() {
             ],
         });
     });
+
+    $('table.comments img').on('click', function () {
+        let image = $(this);
+        $('#modalImage img').attr('src', image.attr('src'));
+        $('#modalImage').modal('show');
+    })
 
 });
 </script>
