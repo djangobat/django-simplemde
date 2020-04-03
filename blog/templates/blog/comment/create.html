@@ -15,7 +15,15 @@ Comment
         max-height: 100%;
         max-width: 100%;
     }
-
+    img[src*='#w-50'] {
+        width: 50%;
+    }
+    img[src*='#w-75'] {
+        width: 75%;
+    }
+    img[src*='#w-100'] {
+        width: 100%;
+    }
 </style>
 {% endblock css %}
 {% block main %}
@@ -42,7 +50,7 @@ Comment
             {% for comment in comments %}
             <tr>
                 <td>{{ comment.name }}</td>
-                <td>{{ comment.content|markdown }}</td>
+                <td>{{ comment.content|markdown|safe }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -58,46 +66,41 @@ Comment
 <script type="text/template" id="ImageUploadTemplate">
     <div id="uploadImage">
         <div class="my-2" id="js-display-image">
-            <div style="border: 1px dashed; background-color: #f9f7f7; height: 279px; display: flex; justify-content: center; align-items: center;">
-                <i class="fas fa-image fa-4x"></i>
-            </div>
+            {% include "blog/comment/image_placeholder.html" %}
         </div>
         <input class="fileUpload" type="file" name="image"
                    style="display: none;"
-                   data-url=""
+                   data-url="{% url 'blog:ajax_image_upload' %}"
                    data-form-data='{"csrfmiddlewaretoken": "{{ csrf_token }}"}'>
-
-        <button class="btn btn-danger btn-lg my-4 js-delete-image"
-                data-url=""
-                style="display: none">
-            <i class="fas fa-trash-alt mr-2"></i>
-            Xóa ảnh
-        </button>
-        
-        <button class="btn btn-warning text-white btn-lg my-4 js-uploading-image" style="display: none" type="button" disabled>
-            <span class="spinner-warning spinner-border-sm" role="status" aria-hidden="true"></span>
-            Loading...
-        </button>
-
-        <button class="btn btn-warning btn-lg text-white my-4 js-upload-image"><i class="fas fa-cloud-upload-alt mr-2"></i>Tải ảnh lên</button>
 
         <div class="invalid-feedback js-error">Ảnh không hợp lệ!</div>
     </div>
 </script>
 <script>
-function youtube_parser(url) {
-    var regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/;
-    var match = url.match(regExp);
-    return (match && match[7].length == 11) ? match[7] : url;
-}
 var token = "{{ csrf_token }}"
 
+var replaceTextImage = function (cm, image, text) {
+    var doc = cm.getDoc();
+    var cursor = doc.getCursor();
+    var line = doc.getLine(cursor.line);
+    var from = {
+        line: cursor.line,
+        ch: line.length-image.length,
+    }
+    var to = {
+        line: cursor.line,
+        ch: line.length,
+    }
+
+    doc.replaceRange(text, from, to);
+}
 var Toolbar_UploadImage = {
     name: "UploadImage",
     title: "Upload Image",
     className: "fa fa-upload",
     action: function(editor) {
         var cm = editor.codemirror;
+
         swal({
             title: "Upload Image",
             content: $.parseHTML('<div>' + $('#ImageUploadTemplate').html() + '</div>')[0],
@@ -105,36 +108,47 @@ var Toolbar_UploadImage = {
             timer: 0,
         });
 
-        $('.js-upload-image').on('click', function () {
+        $('#uploadImage').on('click', '.js-upload-image', function () {
+
+            var image = '';
 
             $('.fileUpload').click();
             $('.fileUpload').fileupload({
                 dataTye: 'json',
-                start: function(e, data) {
-                    $('.js-upload-image').hide();
-                    $('.js-uploading-image').show();
-                },
                 done: function (e, data) {
-                    $('.js-uploading-image').hide()
-                    $('.js-upload-image').show()
                     if (data.result.is_valid) {
                         $('.js-error').hide()
-                        $('.js-delete-image').show()
-                        $('.js-delete-image').attr('data-url', data.result.delete_url)
-                        $('.js-upload-image').prop('disabled', true);
                         $('#js-display-image').html(data.result.html_image)
-
+                        image = data.result.markdown_image
                         cm.replaceSelection(data.result.markdown_image);
 
                     } else {
                         $('.js-error').show();
                     }
-                }
+                },
             });
 
-            $('.js-delete-image').on('click', function () {
-                let el = $(this);
+            $('#uploadImage').on('change', 'form.js-width-form', function () {
+                $(this).submit();
+            });
 
+            $('#uploadImage').on('submit', 'form.js-width-form', function () {
+                let form = $(this);
+                $.ajax({
+                    url: form.attr('action'),
+                    dataType: 'json',
+                    type: 'post',
+                    data: form.serialize(),
+                    success: function (data) {
+                        replaceTextImage(cm, image, data.markdown_image)
+                    }
+                });
+
+                return false;
+            });
+
+            $('#uploadImage').on('click', '.js-delete-image', function () {
+                let el = $(this);
                 $.ajax({
                     url: el.attr('data-url'),
                     type: 'post',
@@ -143,16 +157,21 @@ var Toolbar_UploadImage = {
                         csrfmiddlewaretoken: token,
                     },
                     success: function (data) {
-                        $('.js-delete-image').hide();
-                        $('.js-upload-image').show();
-                        $('.js-upload-image').prop('disabled', false);
-                        $('#js-display-image').html('')
+                        $('#js-display-image').html(data.image_placeholder)
+                        replaceTextImage(cm, image, '');
                     }
                 });
+                return false;
             });
 
         });
     }
+}
+
+function youtube_parser(url) {
+    var regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#\&\?]*).*/;
+    var match = url.match(regExp);
+    return (match && match[7].length == 11) ? match[7] : url;
 }
 
 var Toolbar_YouTube = {

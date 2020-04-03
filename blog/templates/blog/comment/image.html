@@ -1,0 +1,10 @@
+{% load crispy_forms_tags %}
+<div style="width: {{  image.width }}">
+    <img src="{{ image.image.url }}" style="max-height: 100%; max-width: 100%">
+</div>
+{% crispy form %}
+<button class="btn btn-danger btn-lg my-4 js-delete-image"
+        data-url="{% url 'blog:ajax_delete_image' image.id %}">
+    <i class="fas fa-trash-alt mr-2"></i>
+    Xóa ảnh
+</button>
