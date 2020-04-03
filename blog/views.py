@@ -47,7 +47,7 @@ def ajax_image_upload(request):
                                             {'image': image, 'form': form},
                                             request=request)
             
-        name = os.path.basename(image.image.name)
+        name = os.path.basename(image.image.name).split('.')[0]
 
         data['markdown_image'] = f'![{ name }]({ image.image.url }#w-{ image.width })'
     else:
@@ -65,7 +65,7 @@ def ajax_change_width(request, image_id):
     if form.is_valid():
         form.save()
 
-    name = os.path.basename(image.image.name)
+    name = os.path.basename(image.image.name).split('.')[0]
     data['markdown_image'] = f'![{ name }]({ image.image.url }#w-{ image.width })'
 
     return JsonResponse(data)
