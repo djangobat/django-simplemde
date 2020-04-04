@@ -66,7 +66,7 @@ Comment
 <div class="modal fade" id="modalImage" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
     <div class="modal-content">
-      <img class="w-100" src="http://127.0.0.1:8000/media/comments/timeline-project-educa_yhUkgQJ.png#w-100" alt="">
+      <img class="w-100" src="" alt="">
   </div>
 </div>
 </div>
@@ -93,13 +93,14 @@ Comment
 <script>
 var token = "{{ csrf_token }}"
 
-var replaceTextImage = function (cm, image, text) {
+var replaceTextImage = function(cm, image, text) {
     var doc = cm.getDoc();
     var cursor = doc.getCursor();
     var line = doc.getLine(cursor.line);
+
     var from = {
         line: cursor.line,
-        ch: line.length-image.length,
+        ch: line.length - image.length,
     }
     var to = {
         line: cursor.line,
@@ -115,6 +116,7 @@ var Toolbar_UploadImage = {
     className: "fa fa-upload",
     action: function(editor) {
         var cm = editor.codemirror;
+        var image = '';
 
         swal({
             title: "Upload Image",
@@ -123,14 +125,13 @@ var Toolbar_UploadImage = {
             timer: 0,
         });
 
-        $('#uploadImage').on('click', '.js-upload-image', function () {
+        $('#uploadImage').on('click', '.js-upload-image', function() {
 
-            var image = '';
 
             $('.fileUpload').click();
             $('.fileUpload').fileupload({
                 dataTye: 'json',
-                done: function (e, data) {
+                done: function(e, data) {
                     if (data.result.is_valid) {
                         $('.js-error').hide()
                         $('#js-display-image').html(data.result.html_image)
@@ -143,43 +144,40 @@ var Toolbar_UploadImage = {
                 },
             });
 
-            $('#uploadImage').on('change', 'form.js-width-form', function () {
-                $(this).submit();
-            });
-
-            $('#uploadImage').on('submit', 'form.js-width-form', function () {
-                let form = $(this);
-                $.ajax({
-                    url: form.attr('action'),
-                    dataType: 'json',
-                    type: 'post',
-                    data: form.serialize(),
-                    success: function (data) {
-                        replaceTextImage(cm, image, data.markdown_image)
-                    }
-                });
-
-                return false;
-            });
-
-            $('#uploadImage').on('click', '.js-delete-image', function () {
-                let el = $(this);
-                $.ajax({
-                    url: el.attr('data-url'),
-                    type: 'post',
-                    dataType: 'json',
-                    data: {
-                        csrfmiddlewaretoken: token,
-                    },
-                    success: function (data) {
-                        $('#js-display-image').html(data.image_placeholder)
-                        replaceTextImage(cm, image, '');
-                    }
-                });
-                return false;
-            });
-
         });
+
+        $('#uploadImage').on('change', 'form.js-width-form', function() {
+            let form = $(this);
+            $.ajax({
+                url: form.attr('action'),
+                dataType: 'json',
+                type: 'post',
+                data: form.serialize(),
+                success: function(data) {
+                    image = data.markdown_image
+                    replaceTextImage(cm, image, data.markdown_image)
+                }
+            });
+        });
+
+
+        $('#uploadImage').on('click', '.js-delete-image', function() {
+            let el = $(this);
+            $.ajax({
+                url: el.attr('data-url'),
+                type: 'post',
+                dataType: 'json',
+                data: {
+                    csrfmiddlewaretoken: token,
+                },
+                success: function(data) {
+                    $('#js-display-image').html(data.image_placeholder)
+                    replaceTextImage(cm, image, '');
+                }
+            });
+            return false;
+        });
+
     }
 }
 
@@ -264,7 +262,7 @@ $(function() {
         });
     });
 
-    $('table.comments img').on('click', function () {
+    $('table.comments img').on('click', function() {
         let image = $(this);
         $('#modalImage img').attr('src', image.attr('src'));
         $('#modalImage').modal('show');
